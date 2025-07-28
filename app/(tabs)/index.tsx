@@ -16,8 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTrips, usePlaces, useProfile } from '@/hooks/useStorage';
 import { router } from 'expo-router';
 import TripSharingModal from '@/components/TripSharingModal';
-import TripDetailsModal from '@/components/TripDetailsModal';
-import DatePickerModal from '@/components/DatePickerModal';
+import TripDetailsModal from '@/components/trip/TripDetailsModal';
+import DatePickerModal from '@/components/common/DatePickerModal';
 
 export default function TripsScreen() {
   const { trips, loading, addTrip, updateTrip, deleteTrip } = useTrips();
