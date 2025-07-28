@@ -14,7 +14,7 @@ import {
 import { X, MapPin, Calendar, Users, Plus, Map as MapIcon, List, Settings, Eye, CreditCard as Edit, Trash2, Shield, Globe, Lock, Check, UserPlus, Mail } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlaces, useProfile, useTrips } from '../../hooks/useStorage';
-import TripMapView from '../TripMapView';
+import TripMapView from './TripMapView';
 import ItineraryView from './ItineraryView';
 import PlaceSelector from '../PlaceSelector';
 import DatePickerModal from '../common/DatePickerModal';
