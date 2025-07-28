@@ -47,6 +47,13 @@ export default function ProfileScreen() {
   });
   const [preferencesLoading, setPreferencesLoading] = useState(false);
 
+  // Handle authentication check in useEffect to avoid setState during render
+  React.useEffect(() => {
+    if (!isLoggedIn && !loading) {
+      router.replace('/auth/login');
+    }
+  }, [isLoggedIn, loading]);
+
   // Update local state when profile loads
   React.useEffect(() => {
     const initializeProfile = async () => {
@@ -96,6 +103,24 @@ export default function ProfileScreen() {
       loadTravelPreferences().catch(console.error);
     }
   }, [profile, isLoggedIn]);
+
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Redirect if not logged in (after loading is complete)
+  if (!isLoggedIn) {
+    return null;
+  }
 
   // Load travel preferences from local storage
   const loadTravelPreferences = async () => {
@@ -329,7 +354,7 @@ export default function ProfileScreen() {
     );
   };
 
-  const updatePreference = async (key: keyof typeof profile.preferences, value: boolean) => {
+  const updatePreference = async (key: 'notifications' | 'locationSharing' | 'publicProfile', value: boolean) => {
     if (profile) {
       await updateProfile({
         preferences: {
@@ -522,28 +547,32 @@ export default function ProfileScreen() {
             <CreditCard size={20} color="#8B5CF6" />,
             'Payment Methods',
             'Manage your payment options',
-            () => Alert.alert('Payment Methods', 'Payment management would be implemented here.')
+            () => Alert.alert('Payment Methods', 'Payment management would be implemented here.'),
+            undefined
           )}
           
           {renderSettingItem(
             <Calendar size={20} color="#EF4444" />,
             'Export Data',
             'Download your travel history',
-            handleExportData
+            handleExportData,
+            undefined
           )}
           
           {renderSettingItem(
             <Calendar size={20} color="#10B981" />,
             'Import Data',
             'Import data from travel partners',
-            () => setShowJoinModal(true)
+            () => setShowJoinModal(true),
+            undefined
           )}
           
           {renderSettingItem(
             <Shield size={20} color="#06B6D4" />,
             'Privacy & Security',
             'Manage your privacy settings',
-            () => Alert.alert('Privacy & Security', 'Privacy settings would be implemented here.')
+            () => Alert.alert('Privacy & Security', 'Privacy settings would be implemented here.'),
+            undefined
           )}
         </View>
 
@@ -554,14 +583,16 @@ export default function ProfileScreen() {
             <Settings size={20} color="#6B7280" />,
             'Help Center',
             'Get help and support',
-            () => Alert.alert('Help Center', 'Opening help center...')
+            () => Alert.alert('Help Center', 'Opening help center...'),
+            undefined
           )}
           
           {renderSettingItem(
             <User size={20} color="#6B7280" />,
             'Contact Us',
             'Send feedback or report issues',
-            () => Alert.alert('Contact Us', 'Opening contact form...')
+            () => Alert.alert('Contact Us', 'Opening contact form...'),
+            undefined
           )}
         </View>
 

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

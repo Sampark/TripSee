@@ -11,12 +11,13 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { Plus, MapPin, Calendar, Users, MoveVertical as MoreVertical, Eye, Map, Luggage } from 'lucide-react-native';
+import { Plus, MapPin, Calendar, Users, MoveVertical as MoreVertical, Eye, Map, Luggage, LogIn } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTrips, usePlaces, useProfile } from '@/hooks/useStorage';
 import { router } from 'expo-router';
 import TripSharingModal from '@/components/TripSharingModal';
 import TripDetailsModal from '@/components/trip/TripDetailsModal';
+import DatePickerOverlay from '@/components/common/DatePickerOverlay';
 import DatePickerModal from '@/components/common/DatePickerModal';
 
 export default function TripsScreen() {
@@ -58,7 +59,7 @@ export default function TripsScreen() {
         }
 
         // Filter trips based on user roles (Admin, Traveller, Viewer)
-        if (profile?.email) {
+        if (!loading && profile?.email) {
           const userEmail = profile.email;
           
           // Get trips where user has any role
@@ -87,7 +88,7 @@ export default function TripsScreen() {
       }
     };
 
-    if (!loading && profile) {
+    if (!loading) {
       initializeTripsData();
     }
   }, [loading, trips, profile, checkLoginStatus]);
@@ -121,6 +122,12 @@ export default function TripsScreen() {
         image: 'https://images.pexels.com/photos/1320684/pexels-photo-1320684.jpeg?auto=compress&cs=tinysrgb&w=800',
         participants: 1,
         places: 0,
+        createdBy: profile?.email || '',
+        collaborators: [],
+        invitations: [],
+        currency: 'INR',
+        partners: [],
+        fellowTravellers: []
       });
 
       setNewTrip({ title: '', destination: '', destinationData: null, startDate: '', endDate: '', visibility: 'private' });
@@ -209,6 +216,28 @@ export default function TripsScreen() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  if(!isLoggedIn){
+    return (<SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerTitleContainer}>
+            <Luggage size={28} color="#111827" style={styles.headerIcon} />
+            <Text style={styles.headerTitle}>My Trips</Text>
+          </View>
+        </View>
+        <View style={styles.emptyState}>
+          <Luggage size={48} color="#D1D5DB" />
+          <Text style={styles.emptyTitle}>Sign In Required</Text>
+          <Text style={styles.emptyDescription}>
+            Sign in to create your trip itineraries and start your adventure.
+          </Text>
+          <TouchableOpacity style={styles.signInPromptButton} onPress={() => router.push('/auth/login')}>
+            <LogIn size={20} color="#FFFFFF" />
+            <Text style={styles.signInPromptButtonText}>Sign In to Create Trip</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>)
   }
 
   return (
@@ -438,28 +467,26 @@ export default function TripsScreen() {
               </View>
             </View>
           </ScrollView>
+          <DatePickerModal
+            visible={showStartDatePicker}
+            onClose={() => setShowStartDatePicker(false)}
+            onDateSelect={(date) => handleDateSelect(date, 'start')}
+            title="Start Date"
+            initialDate={newTrip.startDate}
+            minDate={new Date().toISOString().split('T')[0]}
+            maxDate={newTrip.endDate || undefined}
+          />
+
+          <DatePickerModal
+            visible={showEndDatePicker}
+            onClose={() => setShowEndDatePicker(false)}
+            onDateSelect={(date) => handleDateSelect(date, 'end')}
+            title="End Date"
+            initialDate={newTrip.endDate}
+            minDate={newTrip.startDate || new Date().toISOString().split('T')[0]}
+          />
         </SafeAreaView>
       </Modal>
-
-      {/* Date Picker Modals */}
-      <DatePickerModal
-        visible={showStartDatePicker}
-        onClose={() => setShowStartDatePicker(false)}
-        onDateSelect={(date) => handleDateSelect(date, 'start')}
-        title="Start Date"
-        initialDate={newTrip.startDate}
-        minDate={new Date().toISOString().split('T')[0]}
-        maxDate={newTrip.endDate || undefined}
-      />
-
-      <DatePickerModal
-        visible={showEndDatePicker}
-        onClose={() => setShowEndDatePicker(false)}
-        onDateSelect={(date) => handleDateSelect(date, 'end')}
-        title="End Date"
-        initialDate={newTrip.endDate}
-        minDate={newTrip.startDate || new Date().toISOString().split('T')[0]}
-      />
 
       {selectedTrip && (
         <TripSharingModal
@@ -807,6 +834,20 @@ const styles = StyleSheet.create({
   dateInput: {
     flex: 1,
     marginRight: 10,
+  },
+  signInPromptButton: {
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  signInPromptButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   visibilitySelector: {
     gap: 12,
