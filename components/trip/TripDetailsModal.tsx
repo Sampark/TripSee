@@ -11,13 +11,15 @@ import {
   Platform,
   TextInput,
 } from 'react-native';
-import { X, MapPin, Calendar, Users, Plus, Map as MapIcon, List, Settings, Eye, CreditCard as Edit, Trash2, Shield, Globe, Lock, Check, UserPlus, Mail } from 'lucide-react-native';
+import { X, MapPin, Calendar, Users, Plus, Map as MapIcon, List, Settings, Eye, Trash2, Shield, Globe, Lock, Check, UserPlus, Mail, Pencil, AlertTriangle, CheckCircle } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlaces, useProfile, useTrips } from '../../hooks/useStorage';
 import TripMapView from './TripMapView';
 import ItineraryView from './ItineraryView';
 import PlaceSelector from '../PlaceSelector';
 import DatePickerModal from '../common/DatePickerModal';
+import AdminActionsModal from './AdminActionsModal';
+import { Trip } from '@/services/StorageService';
 
 interface TripDetailsModalProps {
   visible: boolean;
@@ -43,6 +45,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
 
   // Partner management state
   const [showAddPartnerModal, setShowAddPartnerModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
   const [newPartner, setNewPartner] = useState({
     name: '',
     email: '',
@@ -291,6 +294,38 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
     );
   };
 
+  const handleAdminAction = (action: string, data?: any) => {
+    switch (action) {
+      case 'delete':
+        handleDeleteTrip();
+        break;
+      case 'privacy':
+        handleTogglePrivacy();
+        break;
+      case 'collaborators':
+        setShowAddPartnerModal(true);
+        break;
+      case 'transfer-ownership':
+        Alert.alert('Transfer Ownership', 'This feature will be implemented soon.');
+        break;
+      case 'archive':
+        Alert.alert('Archive Trip', 'This feature will be implemented soon.');
+        break;
+      case 'export':
+        Alert.alert('Export Data', 'This feature will be implemented soon.');
+        break;
+      case 'share-settings':
+        Alert.alert('Share Settings', 'This feature will be implemented soon.');
+        break;
+      case 'advanced-settings':
+        Alert.alert('Advanced Settings', 'This feature will be implemented soon.');
+        break;
+      default:
+        console.log('Unknown admin action:', action);
+    }
+    setShowAdminModal(false);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -334,9 +369,61 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'owner': return <Shield size={16} color="#F59E0B" />;
-      case 'editor': return <Edit size={16} color="#2563EB" />;
+      case 'editor': return <Pencil size={16} color="#2563EB" />;
       case 'viewer': return <Eye size={16} color="#6B7280" />;
       default: return <Eye size={16} color="#6B7280" />;
+    }
+  };
+
+  const getTripStatus = (trip: Trip) => {
+    const today = new Date();
+    const startDate = new Date(trip.startDate);
+    const endDate = new Date(trip.endDate);
+
+    if (today < startDate) {
+      return {
+        status: 'UPCOMING',
+        color: '#1D267D', // dark blue
+        icon: <Calendar size={12} color="#1D267D" />,
+        banner: {
+          text: 'Your trip is coming up!',
+          color: '#E0F2FE', // sky blue background
+          textColor: '#1D267D',
+        }
+      };
+    } else if (today >= startDate && today <= endDate) {
+      return {
+        status: 'IN PROGRESS',
+        color: '#22C55E', // green
+        icon: <MapPin size={12} color="#22C55E" />,
+        banner: {
+          text: 'Your trip is in progress!',
+          color: '#DCFCE7', // light green background
+          textColor: '#22C55E',
+        }
+      };
+    } else if (today > endDate) {
+      return {
+        status: 'COMPLETED',
+        color: '#6B7280', // gray
+        icon: <CheckCircle size={12} color="#6B7280" />,
+        banner: {
+          text: 'Completed',
+          color: '#F3F4F6', // light gray background
+          textColor: '#6B7280',
+        }
+      };
+    } else {
+      return {
+        status: 'UNKNOWN',
+        color: '#F59E0B', // amber
+        icon: <AlertTriangle size={12} color="#F59E0B" />,
+        banner: {
+          text: 'Unknown',
+          color: '#FEF3C7', // light amber background
+          textColor: '#F59E0B',
+        }
+      };
     }
   };
 
@@ -368,16 +455,28 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
           </View>
         </View>
       </View>
-
-      {/* Trip Info */}
-      <View style={styles.tripInfo}>
-        <Text style={styles.tripTitle}>{trip.title}</Text>
+        {/* Trip Info */}
+        <View style={styles.tripInfo}>
+          <View style={[styles.tripDetail, { justifyContent: 'space-between' }]}>
+            <Text style={styles.tripTitle}>{trip.title}</Text>
+            {(() => {
+              const tripStatus = getTripStatus(trip);
+              return (
+                <View style={[styles.tripStatusBadge, { backgroundColor: tripStatus.banner.color }]}>
+                  {tripStatus.icon}
+                  <Text style={[styles.statusText, { color: tripStatus.color, marginLeft: 4 }]}>
+                    {tripStatus.status.charAt(0).toUpperCase() + tripStatus.status.slice(1)}
+                  </Text>
+                </View>
+              );
+            })()}
+          </View>
         <View style={styles.tripDetail}>
           <MapPin size={20} color="#6B7280" />
           <Text style={styles.tripDestination}>{trip.destination}</Text>
         </View>
         
-        <View style={styles.tripDetail}>
+        <View style={[styles.tripDetail, editingDates ? { alignItems: 'flex-start' } : {}]}>
           <Calendar size={20} color="#6B7280" />
           <View style={styles.dateContainer}>
             {editingDates ? (
@@ -425,31 +524,33 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
               </View>
             ) : (
               <View style={styles.dateViewContainer}>
-                <Text style={styles.tripDates}>
-                  {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
-                </Text>
-                {canEdit && (
-                  <TouchableOpacity
-                    style={styles.editDateButton}
-                    onPress={handleEditDates}
-                  >
-                    <Edit size={16} color="#2563EB" />
-                  </TouchableOpacity>
-                )}
+                {/* Trip Duration Display */}
+                  <View style={styles.durationBadge}>
+                    <Text style={styles.durationText}>
+                      {days} Day{days !== 1 ? 's' : ''}, {nights} Night{nights !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  {canEdit && (
+                    <TouchableOpacity
+                      style={[styles.editDateButton, { marginLeft: 8, padding: 4, borderRadius: 4 }]}
+                      onPress={handleEditDates}
+                      accessibilityLabel="Edit trip dates"
+                      accessibilityHint="Tap to edit the trip start and end dates"
+                    >
+                      <Pencil size={18} color="#2563EB" />
+                    </TouchableOpacity>
+                  )}
               </View>
             )}
           </View>
         </View>
-        
-        {/* Trip Duration Display */}
-        <View style={styles.tripDurationContainer}>
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>
-              {days} Day{days !== 1 ? 's' : ''}, {nights} Night{nights !== 1 ? 's' : ''}
-            </Text>
-          </View>
+        <View style={styles.tripDetail}>
+          <Text style={styles.tripDates} numberOfLines={1} ellipsizeMode="tail">
+            {formatDate(trip.startDate)} 
+            <Text style={{ color: '#6B7280', fontWeight: '500' }}>  to  </Text>
+            {formatDate(trip.endDate)}
+          </Text>
         </View>
-        
         <View style={styles.tripDetail}>
           <Users size={20} color="#6B7280" />
           <Text style={styles.tripParticipants}>
@@ -457,25 +558,6 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
           </Text>
         </View>
       </View>
-
-      {/* Admin Controls */}
-      {canDelete && (
-        <View style={styles.adminControls}>
-          <Text style={styles.sectionTitle}>Admin Controls</Text>
-          
-          <TouchableOpacity style={styles.adminButton} onPress={handleTogglePrivacy}>
-            {trip.visibility === 'public' ? <Lock size={20} color="#F59E0B" /> : <Globe size={20} color="#10B981" />}
-            <Text style={styles.adminButtonText}>
-              Make {trip.visibility === 'public' ? 'Private' : 'Public'}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.adminButton, styles.deleteButton]} onPress={handleDeleteTrip}>
-            <Trash2 size={20} color="#EF4444" />
-            <Text style={[styles.adminButtonText, styles.deleteButtonText]}>Delete Trip</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Places Section */}
       <View style={styles.placesSection}>
@@ -526,27 +608,6 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
         )}
       </View>
 
-      {/* Collaborators */}
-      {trip.collaborators && trip.collaborators.length > 0 && (
-        <View style={styles.collaboratorsSection}>
-          <Text style={styles.sectionTitle}>Collaborators</Text>
-          {trip.collaborators.map((collaborator: any) => (
-            <View key={collaborator.id} style={styles.collaboratorItem}>
-              <View style={styles.collaboratorInfo}>
-                <Text style={styles.collaboratorName}>{collaborator.name}</Text>
-                <Text style={styles.collaboratorEmail}>{collaborator.email}</Text>
-              </View>
-              <View style={[styles.collaboratorRole, { backgroundColor: `${getRoleColor(collaborator.role)}20` }]}>
-                {getRoleIcon(collaborator.role)}
-                <Text style={[styles.collaboratorRoleText, { color: getRoleColor(collaborator.role) }]}>
-                  {collaborator.role}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
       {/* Travel Partners */}
       <View style={styles.partnersSection}>
         <View style={styles.sectionHeader}>
@@ -596,6 +657,27 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
           </View>
         )}
       </View>
+
+      {/* Collaborators */}
+      {trip.collaborators && trip.collaborators.length > 0 && (
+        <View style={styles.collaboratorsSection}>
+          <Text style={styles.sectionTitle}>Collaborators</Text>
+          {trip.collaborators.map((collaborator: any) => (
+            <View key={collaborator.id} style={styles.collaboratorItem}>
+              <View style={styles.collaboratorInfo}>
+                <Text style={styles.collaboratorName}>{collaborator.name}</Text>
+                <Text style={styles.collaboratorEmail}>{collaborator.email}</Text>
+              </View>
+              <View style={[styles.collaboratorRole, { backgroundColor: `${getRoleColor(collaborator.role)}20` }]}>
+                {getRoleIcon(collaborator.role)}
+                <Text style={[styles.collaboratorRoleText, { color: getRoleColor(collaborator.role) }]}>
+                  {collaborator.role}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 
@@ -609,18 +691,24 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-      <SafeAreaView style={styles.container}>
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <X size={24} color="#6B7280" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Trip Details</Text>
-          <TouchableOpacity>
-            <Settings size={24} color="#6B7280" />
-          </TouchableOpacity>
+          {userRole === 'owner' && (
+            <TouchableOpacity
+              onPress={() => setShowAdminModal(true)}
+              accessibilityLabel="Admin actions"
+              accessibilityHint="Open admin panel for trip management"
+            >
+              <Settings size={24} color="#6B7280" />
+            </TouchableOpacity>
+          )}
         </View>
 
-        <View style={styles.tabBar}>
+        <View style={[styles.tabBar, { paddingTop: 0 }]}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
             onPress={() => setActiveTab('overview')}
@@ -652,9 +740,11 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
           </TouchableOpacity>
         </View>
 
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'map' && renderMap()}
-        {activeTab === 'itinerary' && renderItinerary()}
+        <View style={styles.contentContainer}>
+          {activeTab === 'overview' && renderOverview()}
+          {activeTab === 'map' && renderMap()}
+          {activeTab === 'itinerary' && renderItinerary()}
+        </View>
 
         <PlaceSelector
           visible={showPlaceSelector}
@@ -688,7 +778,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <SafeAreaView style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { paddingTop: insets.top }]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => {
                 setShowAddPartnerModal(false);
@@ -707,7 +797,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Name *</Text>
                 <TextInput
-                  style={[styles.textInput, partnerErrors.name && styles.inputError]}
+                  style={[styles.nameInput, partnerErrors.name && styles.inputError]}
                   value={newPartner.name}
                   onChangeText={(text) => {
                     setNewPartner({ ...newPartner, name: text });
@@ -725,7 +815,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email (Optional)</Text>
+                <Text style={styles.inputLabel}>Email</Text>
                 <View style={styles.inputContainer}>
                   <Mail size={20} color="#6B7280" style={styles.inputIcon} />
                   <TextInput
@@ -741,7 +831,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
                     keyboardType="email-address"
                     autoCapitalize="none"
                     accessibilityLabel="Partner email"
-                    accessibilityHint="Enter your travel partner's email address (optional)"
+                    accessibilityHint="Enter your travel partner's email address"
                   />
                 </View>
                 {partnerErrors.email && (
@@ -759,9 +849,18 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
                 </Text>
               </View>
             </ScrollView>
-          </SafeAreaView>
+          </View>
         </Modal>
-      </SafeAreaView>
+      </View>
+
+      {/* Admin Actions Modal */}
+      <AdminActionsModal
+        visible={showAdminModal}
+        onClose={() => setShowAdminModal(false)}
+        trip={trip}
+        userRole={userRole}
+        onAction={handleAdminAction}
+      />
     </Modal>
   );
 }
@@ -770,15 +869,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingBottom: 0,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    zIndex: 1,
   },
   headerTitle: {
     fontSize: 18,
@@ -790,6 +892,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    zIndex: 1,
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
   },
   tab: {
     flex: 1,
@@ -858,6 +965,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
+  statusText:{
+    fontSize: 10,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  tripStatusBadge:{
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 6,
+    fontSize: 6,
+    fontWeight: '100',
+  },
   tripInfo: {
     padding: 20,
     borderBottomWidth: 1,
@@ -865,9 +986,9 @@ const styles = StyleSheet.create({
   },
   tripTitle: {
     fontSize: 24,
+    alignItems: 'center',
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 16,
   },
   tripDetail: {
     flexDirection: 'row',
@@ -880,9 +1001,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   tripDates: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#6B7280',
-    marginLeft: 8,
   },
   tripParticipants: {
     fontSize: 16,
@@ -918,6 +1038,11 @@ const styles = StyleSheet.create({
   },
   dateEditContainer: {
     gap: 12,
+  },
+  dates: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1D4ED8',
   },
   dateEditButton: {
     backgroundColor: '#F3F4F6',
@@ -970,7 +1095,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   editDateButton: {
-    padding: 4,
+    padding: 0,
   },
   adminControls: {
     padding: 20,
@@ -1249,7 +1374,7 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginLeft: 12,
   },
-  textInput: {
+  nameInput: {
     flex: 1,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -1257,6 +1382,14 @@ const styles = StyleSheet.create({
     color: '#111827',
     borderWidth: 1,
     borderColor: '#D1D5DB',
+    borderRadius: 8,
+  },
+  textInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#111827',
     borderRadius: 8,
   },
   inputError: {
