@@ -14,12 +14,17 @@ import {
 import { X, MapPin, Calendar, Users, Plus, Map as MapIcon, List, Settings, Eye, Trash2, Shield, Globe, Lock, Check, UserPlus, Mail, Pencil, AlertTriangle, CheckCircle } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlaces, useProfile, useTrips } from '../../hooks/useStorage';
-import TripMapView from './TripMapView';
-import ItineraryView from './ItineraryView';
+import ItineraryBuilder from './ItineraryBuilder';
 import PlaceSelector from '../PlaceSelector';
 import DatePickerModal from '../common/DatePickerModal';
 import AdminActionsModal from './AdminActionsModal';
 import { Trip } from '@/services/StorageService';
+
+let TripMapView: any = null;
+if (Platform.OS !== 'web') {
+  TripMapView = require('./TripMapView').default;
+}
+
 
 interface TripDetailsModalProps {
   visible: boolean;
@@ -681,12 +686,23 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
     </ScrollView>
   );
 
-  const renderMap = () => (
-    <TripMapView trip={trip} places={tripPlaces} />
-  );
+  const renderMap = () => {
+    if (Platform.OS === 'web') {
+      return (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ color: '#6B7280', fontSize: 16, textAlign: 'center' }}>
+            Map view is not available on web.
+          </Text>
+        </View>
+      );
+    }
+    // Defensive: tripPlaces may not be defined if not loaded yet
+    // If tripPlaces is undefined, pass an empty array to avoid runtime error
+    return <TripMapView trip={trip} places={tripPlaces || []} />;
+  };
 
   const renderItinerary = () => (
-    <ItineraryView trip={trip} places={tripPlaces} canEdit={canEdit} />
+    <ItineraryBuilder trip={trip} />
   );
 
   return (

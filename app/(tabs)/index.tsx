@@ -11,13 +11,12 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { Plus, MapPin, Calendar, Users, MoveVertical as MoreVertical, Eye, Map, Luggage, LogIn } from 'lucide-react-native';
+import { Plus, MapPin, Calendar, Users, MoveVertical as MoreVertical, Eye, Map, Luggage, LogIn, List } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTrips, usePlaces, useProfile } from '@/hooks/useStorage';
 import { router } from 'expo-router';
 import TripSharingModal from '@/components/TripSharingModal';
 import TripDetailsModal from '@/components/trip/TripDetailsModal';
-import DatePickerOverlay from '@/components/common/DatePickerOverlay';
 import DatePickerModal from '@/components/common/DatePickerModal';
 
 export default function TripsScreen() {
@@ -337,10 +336,22 @@ export default function TripsScreen() {
                   onPress={() => {
                     setSelectedTrip(trip);
                     setShowDetailsModal(true);
+                    setSelectedTripTab('map');
                   }}
                 >
                   <Map size={16} color="#10B981" />
                   <Text style={styles.mapButtonText}>Map View</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.itineryButton}
+                  onPress={() => {
+                    setSelectedTrip(trip);
+                    setShowDetailsModal(true);
+                    setSelectedTripTab('itinerary');
+                  }}
+                >
+                  <List size={16} color="#10B981" />
+                  <Text style={styles.mapButtonText}>Itinerary</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -675,6 +686,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F0FDF4',
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  itineryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF9C3',
     paddingVertical: 8,
     borderRadius: 6,
   },

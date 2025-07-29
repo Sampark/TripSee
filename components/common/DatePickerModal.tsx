@@ -5,21 +5,33 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  ScrollView,
   Platform,
-  Alert,
 } from 'react-native';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Calendar, DateData } from 'react-native-calendars';
 
 interface DatePickerModalProps {
   visible: boolean;
   onClose: () => void;
-  onDateSelect: (date: string) => void;
+  onDateSelect: (_date: string) => void;
   title: string;
   initialDate?: string;
   minDate?: string;
   maxDate?: string;
+}
+
+interface MarkedDate {
+  selected?: boolean;
+  selectedColor?: string;
+  selectedTextColor?: string;
+  today?: boolean;
+  textColor?: string;
+  fontWeight?: string;
+}
+
+interface MarkedDates {
+  [date: string]: MarkedDate;
 }
 
 export default function DatePickerModal({
@@ -31,121 +43,46 @@ export default function DatePickerModal({
   minDate,
   maxDate,
 }: DatePickerModalProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string>('');
 
   useEffect(() => {
     if (initialDate) {
-      const date = new Date(initialDate);
-      setSelectedDate(date);
-      setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      setSelectedDate(initialDate);
     } else {
-      const today = new Date();
+      const today = new Date().toISOString().split('T')[0];
       setSelectedDate(today);
-      setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     }
   }, [initialDate, visible]);
 
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const isDateDisabled = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
-    
-    if (minDate && dateString < minDate) return true;
-    if (maxDate && dateString > maxDate) return true;
-    
-    return false;
-  };
-
-  const isSameDate = (date1: Date, date2: Date) => {
-    return date1.getDate() === date2.getDate() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getFullYear() === date2.getFullYear();
-  };
-
-  const handleDateSelect = (day: number) => {
-    const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    
-    if (isDateDisabled(newDate)) return;
-    
-    setSelectedDate(newDate);
-    const dateString = newDate.toISOString().split('T')[0];
+  const handleDateSelect = (day: DateData) => {
+    const dateString = day.dateString;
+    setSelectedDate(dateString);
     onDateSelect(dateString);
     onClose(); // Auto-close on iOS for better UX
   };
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const newMonth = new Date(currentMonth);
-    if (direction === 'prev') {
-      newMonth.setMonth(newMonth.getMonth() - 1);
-    } else {
-      newMonth.setMonth(newMonth.getMonth() + 1);
-    }
-    setCurrentMonth(newMonth);
-  };
-
-  const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentMonth);
-    const firstDay = getFirstDayOfMonth(currentMonth);
-    const days = [];
-
-    // Empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(
-        <View key={`empty-${i}`} style={styles.dayCell} />
-      );
+  const getMarkedDates = (): MarkedDates => {
+    const marked: MarkedDates = {};
+    
+    if (selectedDate) {
+      marked[selectedDate] = {
+        selected: true,
+        selectedColor: '#2563EB',
+        selectedTextColor: '#FFFFFF',
+      };
     }
 
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const isSelected = isSameDate(date, selectedDate);
-      const isDisabled = isDateDisabled(date);
-      const isToday = isSameDate(date, new Date());
-
-      days.push(
-        <TouchableOpacity
-          key={day}
-          style={[
-            styles.dayCell,
-            styles.dayButton,
-            isSelected && styles.selectedDay,
-            isDisabled && styles.disabledDay,
-            isToday && !isSelected && styles.todayDay,
-          ]}
-          onPress={() => handleDateSelect(day)}
-          disabled={isDisabled}
-          accessibilityLabel={`${day} ${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`}
-          accessibilityRole="button"
-        >
-          <Text
-            style={[
-              styles.dayText,
-              isSelected && styles.selectedDayText,
-              isDisabled && styles.disabledDayText,
-              isToday && !isSelected && styles.todayDayText,
-            ]}
-          >
-            {day}
-          </Text>
-        </TouchableOpacity>
-      );
+    // Mark today if it's not the selected date
+    const today = new Date().toISOString().split('T')[0];
+    if (today !== selectedDate) {
+      marked[today] = {
+        today: true,
+        textColor: '#2563EB',
+        fontWeight: '500',
+      };
     }
 
-    return days;
+    return marked;
   };
 
   return (
@@ -165,53 +102,70 @@ export default function DatePickerModal({
         </View>
 
         <View style={styles.content}>
-          {/* Month Navigation */}
-          <View style={styles.monthHeader}>
-            <TouchableOpacity
-              style={styles.navButton}
-              onPress={() => navigateMonth('prev')}
-              accessibilityLabel="Previous month"
-            >
-              <ChevronLeft size={24} color="#6B7280" />
-            </TouchableOpacity>
-            
-            <Text style={styles.monthTitle}>
-              {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </Text>
-            
-            <TouchableOpacity
-              style={styles.navButton}
-              onPress={() => navigateMonth('next')}
-              accessibilityLabel="Next month"
-            >
-              <ChevronRight size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Weekday Headers */}
-          <View style={styles.weekdayHeader}>
-            {weekdays.map((weekday) => (
-              <View key={weekday} style={styles.weekdayCell}>
-                <Text style={styles.weekdayText}>{weekday}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Calendar Grid */}
-          <View style={styles.calendar}>
-            {renderCalendar()}
-          </View>
+          <Calendar
+            current={selectedDate}
+            onDayPress={handleDateSelect}
+            markedDates={getMarkedDates()}
+            minDate={minDate}
+            maxDate={maxDate}
+            theme={{
+              backgroundColor: '#FFFFFF',
+              calendarBackground: '#FFFFFF',
+              textSectionTitleColor: '#111827',
+              selectedDayBackgroundColor: '#2563EB',
+              selectedDayTextColor: '#FFFFFF',
+              todayTextColor: '#2563EB',
+              dayTextColor: '#111827',
+              textDisabledColor: '#9CA3AF',
+              dotColor: '#2563EB',
+              selectedDotColor: '#FFFFFF',
+              arrowColor: '#6B7280',
+              monthTextColor: '#111827',
+              indicatorColor: '#2563EB',
+              textDayFontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+              textMonthFontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+              textDayHeaderFontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+              textDayFontWeight: '400',
+              textMonthFontWeight: '600',
+              textDayHeaderFontWeight: '500',
+              textDayFontSize: 16,
+              textMonthFontSize: 20,
+              textDayHeaderFontSize: 14,
+            }}
+            style={styles.calendar}
+            enableSwipeMonths={true}
+            hideExtraDays={true}
+            disableMonthChange={false}
+            firstDay={0} // Sunday
+            hideDayNames={false}
+            showWeekNumbers={false}
+            disableArrowLeft={false}
+            disableArrowRight={false}
+            disableAllTouchEventsForDisabledDays={true}
+            renderHeader={() => {
+              return (
+                <View style={styles.calendarHeader}>
+                  <Text style={styles.calendarHeaderText}>
+                    {new Date().toLocaleDateString('en-US', { 
+                      month: 'long', 
+                      year: 'numeric' 
+                    })}
+                  </Text>
+                </View>
+              );
+            }}
+          />
 
           {/* Selected Date Display */}
           <View style={styles.selectedDateContainer}>
             <Text style={styles.selectedDateLabel}>Selected Date:</Text>
             <Text style={styles.selectedDateText}>
-              {selectedDate.toLocaleDateString('en-US', {
+              {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
-              })}
+              }) : 'No date selected'}
             </Text>
           </View>
         </View>
@@ -243,76 +197,17 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  monthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  calendar: {
     marginBottom: 20,
   },
-  navButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+  calendarHeader: {
+    alignItems: 'center',
+    paddingVertical: 10,
   },
-  monthTitle: {
+  calendarHeaderText: {
     fontSize: 20,
     fontWeight: '600',
     color: '#111827',
-  },
-  weekdayHeader: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  weekdayCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  weekdayText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  calendar: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 20,
-  },
-  dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayButton: {
-    borderRadius: 8,
-    margin: 2,
-  },
-  selectedDay: {
-    backgroundColor: '#2563EB',
-  },
-  disabledDay: {
-    opacity: 0.3,
-  },
-  todayDay: {
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#2563EB',
-  },
-  dayText: {
-    fontSize: 16,
-    color: '#111827',
-  },
-  selectedDayText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  disabledDayText: {
-    color: '#9CA3AF',
-  },
-  todayDayText: {
-    color: '#2563EB',
-    fontWeight: '500',
   },
   selectedDateContainer: {
     backgroundColor: '#F9FAFB',
@@ -329,17 +224,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 20,
-    maxHeight: '70%',
   },
 });

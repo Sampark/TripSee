@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
     "build:web": "expo export --platform web",
@@ -39,8 +40,9 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.1",
+    "react-native-calendars": "^1.1313.0",
     "react-native-gesture-handler": "~2.24.0",
-    "react-native-maps": "^1.24.13",
+    "react-native-maps": "1.20.1",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.3.0",
     "react-native-screens": "~4.10.0",
@@ -52,8 +54,11 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
-    "typescript": "~5.8.3",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
     "eslint": "^9.25.0",
-    "eslint-config-expo": "~9.2.0"
+    "eslint-config-expo": "~9.2.0",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "typescript": "~5.8.3"
   }
 }
