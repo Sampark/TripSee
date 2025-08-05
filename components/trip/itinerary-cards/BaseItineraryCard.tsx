@@ -69,6 +69,7 @@ interface BaseItineraryCardProps extends ItineraryItemProps {
   icon: React.ReactNode;
   iconColor: string;
   typeName: string;
+  hideLocation?: boolean;
 }
 
 export default function BaseItineraryCard({ 
@@ -79,7 +80,8 @@ export default function BaseItineraryCard({
   iconColor, 
   typeName,
   showTags = false,
-  tags = []
+  tags = [],
+  hideLocation = false
 }: BaseItineraryCardProps) {
   return (
     <View style={styles.itemCard}>
@@ -104,20 +106,23 @@ export default function BaseItineraryCard({
           </View>
         </View>
         
-        <Text style={styles.itemName}>{item.name}</Text>
-
-        {/* Tags for multi-day items */}
-        {showTags && tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {tags.map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+        {/* Title and tags in the same row */}
+        <View style={styles.titleRow}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          
+          {/* Tags for multi-day items */}
+          {showTags && tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {tags.map((tag, index) => (
+                <View key={`tag-${index}`} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
         
-        {item.location && (
+        {item.location && !hideLocation && (
           <View style={styles.itemDetail}>
             <MapPin size={14} color="#6B7280" />
             <Text style={styles.itemLocation}>{item.location}</Text>
@@ -215,28 +220,35 @@ const styles = StyleSheet.create({
   },
   tagsContainer: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+    gap: 4,
+    flexShrink: 0,
   },
   tag: {
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   tagText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     color: '#2563EB',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
   itemName: {
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 10,
+    flex: 1,
     lineHeight: 24,
+    marginRight: 8,
   },
   itemMetaRow: {
     flexDirection: 'row',

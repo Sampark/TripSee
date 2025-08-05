@@ -37,10 +37,12 @@ TripSee is a comprehensive travel planning and social platform that allows users
 - Public trip feed
 - User connections
 
-### 6. **Itinerary Planning**
-- Day-by-day itinerary creation
-- Activity scheduling
-- Place integration in itineraries
+### 6. **Itinerary Planning** (Enhanced)
+- Day-by-day itinerary creation with multiple item types
+- Support for flights, trains, cabs, hotels, base locations, places, and other activities
+- Multi-day item support (items spanning multiple days)
+- Time-based scheduling and organization
+- Status tracking (confirmed, pending, cancelled)
 
 ### 7. **Notifications**
 - Real-time notifications
@@ -107,11 +109,12 @@ social_posts (1) ←→ (many) post_comments
 users (1) ←→ (many) user_connections
 ```
 
-### Itinerary Planning
+### Enhanced Itinerary Planning
 ```
-trips (1) ←→ (many) itinerary_days
-itinerary_days (1) ←→ (many) itinerary_activities
-places (1) ←→ (many) itinerary_activities
+trips (1) ←→ (many) itinerary_items
+trips (1) ←→ (many) itinerary_day_plans
+itinerary_day_plans (1) ←→ (many) itinerary_day_items
+itinerary_items (1) ←→ (1) itinerary_day_items
 ```
 
 ## Detailed Table Descriptions
@@ -136,6 +139,33 @@ Three levels of trip participation:
 2. **trip_partners**: Non-registered participants added by users
 3. **fellow_travellers**: Additional participants for larger groups
 
+### Enhanced Itinerary System
+Comprehensive itinerary planning with support for multiple item types:
+
+#### Itinerary Items Table
+The main table for all itinerary items with type-specific fields:
+- **type**: Item type (flight, train, cab, hotel, base, place, others)
+- **name**: Item name/title
+- **time**: Time of the item
+- **location**: Location information
+- **status**: Item status (confirmed, pending, cancelled)
+- **is_multi_day**: Whether item spans multiple days
+- **start_date/end_date**: For multi-day items
+
+#### Type-Specific Fields
+- **Flight items**: flight_number, departure_airport, arrival_airport, airline, departure_date, arrival_date
+- **Train items**: train_number, departure_station, arrival_station, class, seat_number
+- **Hotel items**: hotel_name, room_type, check_in_date, check_out_date, amenities, contact_person
+- **Cab items**: cab_type, driver_name
+- **Place items**: category, estimated_time, price, image, rating, description
+- **Base location items**: accommodation_type
+
+#### Itinerary Day Plans
+Organizes items by day:
+- **date**: The specific date
+- **day_number**: Sequential day number
+- **sort_order**: For ordering items within a day
+
 ### Expense Management
 Comprehensive expense tracking with:
 - **expenses**: Main expense records
@@ -157,6 +187,7 @@ Complete social platform with:
 - Foreign key indexes for joins
 - Composite indexes for common queries
 - Status-based indexes for filtering
+- Date range indexes for multi-day items
 
 ### Views
 - **trip_summary**: Aggregated trip statistics
@@ -174,6 +205,8 @@ Complete social platform with:
 - Collaboration roles: `owner`, `admin`, `traveller`, `viewer`
 - Invitation status: `pending`, `accepted`, `declined`
 - Expense settlement status: `pending`, `paid`, `received`
+- Itinerary item types: `flight`, `train`, `cab`, `hotel`, `base`, `place`, `others`
+- Item status: `confirmed`, `pending`, `cancelled`
 
 ### JSON Fields
 - **destination_data**: Flexible destination information
@@ -230,6 +263,7 @@ Complete social platform with:
 - Social interaction (likes, comments, shares)
 - Financial tracking (expenses, settlements)
 - Performance metrics (query response times)
+- Itinerary planning activity (items created, types used)
 
 ### Audit Trail
 - **created_at/updated_at**: All tables
@@ -244,6 +278,7 @@ Complete social platform with:
 - Multi-language support (i18n)
 - Advanced search (full-text search)
 - Media management (image/video storage)
+- Advanced itinerary features (recurring items, templates)
 
 ### Scalability Planning
 - Read replicas for social features
@@ -253,4 +288,4 @@ Complete social platform with:
 
 ## Conclusion
 
-This database schema provides a solid foundation for the TripSee app, supporting all current features while maintaining flexibility for future enhancements. The design prioritizes performance, scalability, and maintainability while ensuring data integrity and security. 
+This database schema provides a solid foundation for the TripSee app, supporting all current features while maintaining flexibility for future enhancements. The enhanced itinerary system now supports multiple item types and multi-day planning, making it more comprehensive for travel planning needs. The design prioritizes performance, scalability, and maintainability while ensuring data integrity and security. 

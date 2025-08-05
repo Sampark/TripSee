@@ -49,6 +49,7 @@ export default function FlightCard({ item, currentDate, onEdit, onRemove }: Flig
       typeName="FLIGHT"
       showTags={showTags}
       tags={tags}
+      hideLocation={true}
     />
   );
 } 

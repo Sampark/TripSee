@@ -195,12 +195,12 @@ export default function ItineraryBuilder({ trip }: ItineraryBuilderProps) {
   
   // Get items for a specific date
   const getItemsForDayByDate = (date: string): TravelItem[] => {
-    return allItems.filter(item => {
+    const currentDate = new Date(date);
+    const filteredItems = allItems.filter(item => {
       // For items with specific dates (flights, trains, hotels)
       if (item.departureDate && item.arrivalDate) {
         const departureDate = new Date(item.departureDate);
         const arrivalDate = new Date(item.arrivalDate);
-        const currentDate = new Date(date);
         
         // Check if current date falls within the item's date range
         return currentDate >= departureDate && currentDate <= arrivalDate;
@@ -210,7 +210,6 @@ export default function ItineraryBuilder({ trip }: ItineraryBuilderProps) {
       if (item.checkInDate && item.checkOutDate) {
         const checkInDate = new Date(item.checkInDate);
         const checkOutDate = new Date(item.checkOutDate);
-        const currentDate = new Date(date);
         
         return currentDate >= checkInDate && currentDate <= checkOutDate;
       }
@@ -219,7 +218,6 @@ export default function ItineraryBuilder({ trip }: ItineraryBuilderProps) {
       if (item.isMultiDay && item.startDate && item.endDate) {
         const startDate = new Date(item.startDate);
         const endDate = new Date(item.endDate);
-        const currentDate = new Date(date);
         
         return currentDate >= startDate && currentDate <= endDate;
       }
@@ -232,6 +230,18 @@ export default function ItineraryBuilder({ trip }: ItineraryBuilderProps) {
       // Default: item belongs to the day it was added (fallback)
       return false;
     });
+
+    // Remove duplicates by ID to ensure unique keys
+    const seenIds = new Set<string>();
+    const uniqueItems = filteredItems.filter(item => {
+      if (seenIds.has(item.id)) {
+        return false;
+      }
+      seenIds.add(item.id);
+      return true;
+    });
+
+    return uniqueItems;
   };
   
   // If no days generated (missing dates), show error state
@@ -823,7 +833,7 @@ export default function ItineraryBuilder({ trip }: ItineraryBuilderProps) {
         ) : (
           <FlatList
             data={sortItemsByTime(getItemsForDay(selectedDay))}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => `${item.id}-${days[selectedDay]}`}
             renderItem={({ item }) => renderItemCard(item, days[selectedDay])}
             style={styles.itemsList}
             showsVerticalScrollIndicator={false}

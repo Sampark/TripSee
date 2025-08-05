@@ -165,23 +165,86 @@ CREATE TABLE activity_photos (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Itinerary days table
-CREATE TABLE itinerary_days (
+-- Itinerary items table (NEW - replaces old itinerary_days structure)
+CREATE TABLE itinerary_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-    day_number INTEGER NOT NULL,
-    date DATE NOT NULL,
-    title VARCHAR(255),
+    type VARCHAR(20) NOT NULL CHECK (type IN ('flight', 'train', 'cab', 'hotel', 'base', 'place', 'others')),
+    name VARCHAR(255) NOT NULL,
+    time VARCHAR(20) NOT NULL,
+    location VARCHAR(255),
+    details TEXT,
+    duration VARCHAR(50),
+    cost VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'pending', 'cancelled')),
+    
+    -- Multi-day support
+    start_date DATE,
+    end_date DATE,
+    is_multi_day BOOLEAN DEFAULT false,
+    
+    -- Flight-specific fields
+    flight_number VARCHAR(50),
+    departure_airport VARCHAR(100),
+    arrival_airport VARCHAR(100),
+    airline VARCHAR(100),
+    departure_date DATE,
+    arrival_date DATE,
+    
+    -- Train-specific fields
+    train_number VARCHAR(50),
+    departure_station VARCHAR(100),
+    arrival_station VARCHAR(100),
+    class VARCHAR(20),
+    seat_number VARCHAR(20),
+    
+    -- Hotel-specific fields
+    hotel_name VARCHAR(255),
+    room_type VARCHAR(100),
+    check_in_date DATE,
+    check_out_date DATE,
+    check_in_time VARCHAR(20),
+    check_out_time VARCHAR(20),
+    amenities TEXT,
+    contact_person VARCHAR(100),
+    phone_number VARCHAR(20),
+    
+    -- Cab-specific fields
+    cab_type VARCHAR(50),
+    driver_name VARCHAR(100),
+    
+    -- Place-specific fields
+    category VARCHAR(50),
+    estimated_time VARCHAR(50),
+    price VARCHAR(50),
+    image VARCHAR(500),
+    rating DECIMAL(3,2),
     description TEXT,
+    
+    -- Base location-specific fields
+    accommodation_type VARCHAR(50),
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Itinerary day activities junction table
-CREATE TABLE itinerary_day_activities (
-    itinerary_day_id UUID NOT NULL REFERENCES itinerary_days(id) ON DELETE CASCADE,
-    activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-    PRIMARY KEY (itinerary_day_id, activity_id)
+-- Itinerary day plans table (for organizing items by day)
+CREATE TABLE itinerary_day_plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    day_number INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(trip_id, date)
+);
+
+-- Itinerary day items junction table
+CREATE TABLE itinerary_day_items (
+    day_plan_id UUID NOT NULL REFERENCES itinerary_day_plans(id) ON DELETE CASCADE,
+    item_id UUID NOT NULL REFERENCES itinerary_items(id) ON DELETE CASCADE,
+    sort_order INTEGER DEFAULT 0,
+    PRIMARY KEY (day_plan_id, item_id)
 );
 
 -- Expenses table
@@ -283,6 +346,11 @@ CREATE INDEX idx_collaborators_trip_id ON collaborators(trip_id);
 CREATE INDEX idx_collaborators_user_id ON collaborators(user_id);
 CREATE INDEX idx_places_trip_id ON places(trip_id);
 CREATE INDEX idx_activities_trip_id ON activities(trip_id);
+CREATE INDEX idx_itinerary_items_trip_id ON itinerary_items(trip_id);
+CREATE INDEX idx_itinerary_items_type ON itinerary_items(type);
+CREATE INDEX idx_itinerary_items_date_range ON itinerary_items(start_date, end_date);
+CREATE INDEX idx_itinerary_day_plans_trip_id ON itinerary_day_plans(trip_id);
+CREATE INDEX idx_itinerary_day_plans_date ON itinerary_day_plans(date);
 CREATE INDEX idx_expenses_trip_id ON expenses(trip_id);
 CREATE INDEX idx_expenses_paid_by_id ON expenses(paid_by_id);
 CREATE INDEX idx_expense_splits_expense_id ON expense_splits(expense_id);
@@ -311,7 +379,8 @@ CREATE TRIGGER update_partners_updated_at BEFORE UPDATE ON partners FOR EACH ROW
 CREATE TRIGGER update_fellow_travelers_updated_at BEFORE UPDATE ON fellow_travelers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_places_updated_at BEFORE UPDATE ON places FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_activities_updated_at BEFORE UPDATE ON activities FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_itinerary_days_updated_at BEFORE UPDATE ON itinerary_days FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_itinerary_items_updated_at BEFORE UPDATE ON itinerary_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_itinerary_day_plans_updated_at BEFORE UPDATE ON itinerary_day_plans FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON expenses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_expense_splits_updated_at BEFORE UPDATE ON expense_splits FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_social_posts_updated_at BEFORE UPDATE ON social_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
