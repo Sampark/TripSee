@@ -142,11 +142,11 @@ export default function DatePickerModal({
             disableArrowLeft={false}
             disableArrowRight={false}
             disableAllTouchEventsForDisabledDays={true}
-            renderHeader={() => {
+            renderHeader={(date) => {
               return (
                 <View style={styles.calendarHeader}>
                   <Text style={styles.calendarHeaderText}>
-                    {new Date().toLocaleDateString('en-US', { 
+                    {new Date(date).toLocaleDateString('en-US', { 
                       month: 'long', 
                       year: 'numeric' 
                     })}
