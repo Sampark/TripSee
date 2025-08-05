@@ -4,8 +4,9 @@ export interface Trip {
   id: string;
   title: string;
   destination: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
+  plannedDurationDays?: number;
   image: string;
   participants: number;
   places: number;
@@ -132,6 +133,63 @@ export interface SharedData {
   lastSync: string;
 }
 
+export interface TravelItem {
+  id: string;
+  type: 'flight' | 'train' | 'cab' | 'hotel' | 'base' | 'place' | 'others';
+  name: string;
+  time: string;
+  location: string;
+  details?: string;
+  duration?: string;
+  cost?: string;
+  status?: 'confirmed' | 'pending' | 'cancelled';
+  // Multi-day support
+  startDate?: string;
+  endDate?: string;
+  isMultiDay?: boolean;
+  // Additional fields for specific types
+  departureDate?: string;
+  arrivalDate?: string;
+  checkInDate?: string;
+  checkOutDate?: string;
+  // Train-specific fields
+  trainNumber?: string;
+  departureStation?: string;
+  arrivalStation?: string;
+  class?: string;
+  seatNumber?: string;
+  // Flight-specific fields
+  flightNumber?: string;
+  departureAirport?: string;
+  arrivalAirport?: string;
+  airline?: string;
+  // Hotel-specific fields
+  hotelName?: string;
+  roomType?: string;
+  // Cab-specific fields
+  cabType?: string;
+  driverName?: string;
+  // Place-specific fields
+  category?: string;
+  estimatedTime?: string;
+  price?: string;
+  image?: string;
+  rating?: number;
+  description?: string;
+}
+
+export interface DayPlan {
+  date: string;
+  items: TravelItem[];
+}
+
+export interface Itinerary {
+  tripId: string;
+  dayPlans: DayPlan[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 class StorageService {
   private static readonly KEYS = {
     TRIPS: 'travel_trips',
@@ -143,6 +201,7 @@ class StorageService {
     PUBLIC_TRIPS: 'public_trips',
     TRIP_INVITATIONS: 'trip_invitations',
     EXPENSE_SETTLEMENTS: 'expense_settlements',
+    ITINERARIES: 'travel_itineraries',
   };
 
   // Trip Management
@@ -520,6 +579,8 @@ class StorageService {
       name: 'TripSee User',
       email: 'user@example.com',
       avatar: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=400',
+      userType: 'guest',
+      isActive: true,
       preferences: {
         notifications: true,
         locationSharing: false,
@@ -531,6 +592,8 @@ class StorageService {
         totalExpenses: 0,
         friendsConnected: 0,
       },
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
     };
   }
 
@@ -954,6 +1017,84 @@ class StorageService {
     }
   }
 
+  // Itinerary Management
+  async saveItineraries(itineraries: Itinerary[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(StorageService.KEYS.ITINERARIES, JSON.stringify(itineraries));
+    } catch (error) {
+      console.error('Error saving itineraries:', error);
+      throw error;
+    }
+  }
+
+  async getItineraries(): Promise<Itinerary[]> {
+    try {
+      const itinerariesJson = await AsyncStorage.getItem(StorageService.KEYS.ITINERARIES);
+      return itinerariesJson ? JSON.parse(itinerariesJson) : [];
+    } catch (error) {
+      console.error('Error getting itineraries:', error);
+      return [];
+    }
+  }
+
+  async getItinerary(tripId: string): Promise<Itinerary | null> {
+    try {
+      const itineraries = await this.getItineraries();
+      return itineraries.find(itinerary => itinerary.tripId === tripId) || null;
+    } catch (error) {
+      console.error('Error getting itinerary:', error);
+      return null;
+    }
+  }
+
+  async saveItinerary(itinerary: Itinerary): Promise<void> {
+    try {
+      const itineraries = await this.getItineraries();
+      const existingIndex = itineraries.findIndex(i => i.tripId === itinerary.tripId);
+      
+      if (existingIndex >= 0) {
+        itineraries[existingIndex] = itinerary;
+      } else {
+        itineraries.push(itinerary);
+      }
+      
+      await this.saveItineraries(itineraries);
+    } catch (error) {
+      console.error('Error saving itinerary:', error);
+      throw error;
+    }
+  }
+
+  async updateItinerary(tripId: string, updates: Partial<Itinerary>): Promise<void> {
+    try {
+      const itineraries = await this.getItineraries();
+      const itineraryIndex = itineraries.findIndex(i => i.tripId === tripId);
+      
+      if (itineraryIndex >= 0) {
+        itineraries[itineraryIndex] = {
+          ...itineraries[itineraryIndex],
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        };
+        await this.saveItineraries(itineraries);
+      }
+    } catch (error) {
+      console.error('Error updating itinerary:', error);
+      throw error;
+    }
+  }
+
+  async deleteItinerary(tripId: string): Promise<void> {
+    try {
+      const itineraries = await this.getItineraries();
+      const filteredItineraries = itineraries.filter(i => i.tripId !== tripId);
+      await this.saveItineraries(filteredItineraries);
+    } catch (error) {
+      console.error('Error deleting itinerary:', error);
+      throw error;
+    }
+  }
+
   // Clear all data (for testing/reset)
   async clearAllData(): Promise<void> {
     try {
@@ -966,6 +1107,7 @@ class StorageService {
         StorageService.KEYS.SHARED_DATA,
         StorageService.KEYS.PUBLIC_TRIPS,
         StorageService.KEYS.TRIP_INVITATIONS,
+        StorageService.KEYS.ITINERARIES,
       ]);
     } catch (error) {
       console.error('Error clearing data:', error);

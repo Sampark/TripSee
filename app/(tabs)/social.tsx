@@ -31,8 +31,9 @@ interface SharedTrip {
   id: string;
   title: string;
   destination: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
+  plannedDurationDays?: number;
   image: string;
   sharedBy: string;
   participants: number;
@@ -181,6 +182,7 @@ export default function SocialScreen() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
@@ -231,7 +233,11 @@ export default function SocialScreen() {
             <View style={styles.tripDetail}>
               <Calendar size={16} color="#6B7280" />
               <Text style={styles.tripDates}>
-                {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                {trip.startDate && trip.endDate ? (
+                  `${formatDate(trip.startDate)} - ${formatDate(trip.endDate)}`
+                ) : (
+                  trip.plannedDurationDays ? `${trip.plannedDurationDays} days planned` : 'Dates not set'
+                )}
               </Text>
             </View>
             
@@ -290,7 +296,11 @@ export default function SocialScreen() {
             <View style={styles.tripDetail}>
               <Calendar size={16} color="#6B7280" />
               <Text style={styles.tripDates}>
-                {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                {trip.startDate && trip.endDate ? (
+                  `${formatDate(trip.startDate)} - ${formatDate(trip.endDate)}`
+                ) : (
+                  trip.plannedDurationDays ? `${trip.plannedDurationDays} days planned` : 'Dates not set'
+                )}
               </Text>
             </View>
             

@@ -31,10 +31,11 @@ interface TripDetailsModalProps {
   trip: any;
   onClose: () => void;
   onTripUpdate?: (tripId: string, updates: any) => void;
+  onTripDelete?: (tripId: string) => void;
   initialTab?: 'overview' | 'map' | 'itinerary';
 }
 
-export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate, initialTab = 'overview' }: TripDetailsModalProps) {
+export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate, onTripDelete, initialTab = 'overview' }: TripDetailsModalProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'map' | 'itinerary'>('overview');
   const [showPlaceSelector, setShowPlaceSelector] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -42,6 +43,9 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
   const [editingDates, setEditingDates] = useState(false);
   const [tempStartDate, setTempStartDate] = useState('');
   const [tempEndDate, setTempEndDate] = useState('');
+  const [tempPlannedDurationDays, setTempPlannedDurationDays] = useState(0);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState('');
   const [userRole, setUserRole] = useState<'owner' | 'editor' | 'viewer'>('viewer');
   const { places } = usePlaces();
   const { profile } = useProfile();
@@ -92,6 +96,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
     if (editingDates && trip) {
       setTempStartDate(trip.startDate);
       setTempEndDate(trip.endDate);
+      setTempPlannedDurationDays(trip.plannedDurationDays || 0);
     }
   }, [editingDates, trip]);
   const tripPlaces = places.filter(place => place.tripId === trip.id);
@@ -209,20 +214,23 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
   };
 
   const handleSaveDates = () => {
-    // Validate dates
-    const startDate = new Date(tempStartDate);
-    const endDate = new Date(tempEndDate);
-    
-    if (startDate > endDate) {
-      Alert.alert('Invalid Dates', 'Start date cannot be later than end date.');
-      return;
+    // Validate dates if both are provided
+    if (tempStartDate && tempEndDate) {
+      const startDate = new Date(tempStartDate);
+      const endDate = new Date(tempEndDate);
+      
+      if (startDate > endDate) {
+        Alert.alert('Invalid Dates', 'Start date cannot be later than end date.');
+        return;
+      }
     }
     
-    // Save dates
+    // Save dates and duration (can be empty strings for optional dates)
     if (onTripUpdate) {
       onTripUpdate(trip.id, {
-        startDate: tempStartDate,
-        endDate: tempEndDate,
+        startDate: tempStartDate || undefined,
+        endDate: tempEndDate || undefined,
+        plannedDurationDays: tempPlannedDurationDays || undefined,
       });
     }
     
@@ -234,6 +242,31 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
     setEditingDates(false);
     setTempStartDate(trip.startDate);
     setTempEndDate(trip.endDate);
+    setTempPlannedDurationDays(trip.plannedDurationDays || 0);
+  };
+
+  const handleEditTitle = () => {
+    setEditingTitle(true);
+    setTempTitle(trip.title);
+  };
+
+  const handleSaveTitle = () => {
+    if (!tempTitle.trim()) {
+      Alert.alert('Error', 'Trip title cannot be empty');
+      return;
+    }
+
+    if (onTripUpdate) {
+      onTripUpdate(trip.id, {
+        title: tempTitle.trim(),
+      });
+    }
+    setEditingTitle(false);
+  };
+
+  const handleCancelTitleEdit = () => {
+    setEditingTitle(false);
+    setTempTitle(trip.title);
   };
 
   const handleDateSelect = (date: string, type: 'start' | 'end') => {
@@ -268,9 +301,16 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Trip Deleted', 'The trip has been deleted successfully.');
-            onClose();
+          onPress: async () => {
+            try {
+              if (onTripDelete) {
+                await onTripDelete(trip.id);
+                Alert.alert('Trip Deleted', 'The trip has been deleted successfully.');
+                onClose();
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete trip. Please try again.');
+            }
           }
         }
       ]
@@ -352,6 +392,10 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
 
   // Calculate trip duration in days and nights
   const calculateTripDuration = () => {
+    if (!trip.startDate || !trip.endDate) {
+      return { days: 0, nights: 0 };
+    }
+    
     const startDate = new Date(trip.startDate);
     const endDate = new Date(trip.endDate);
     const timeDifference = endDate.getTime() - startDate.getTime();
@@ -381,6 +425,20 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
   };
 
   const getTripStatus = (trip: Trip) => {
+    // If dates are not provided, return PLANNING status
+    if (!trip.startDate || !trip.endDate) {
+      return {
+        status: 'PLANNING',
+        color: '#8B5CF6', // purple
+        icon: <Calendar size={12} color="#8B5CF6" />,
+        banner: {
+          text: 'Planning in progress',
+          color: '#F3E8FF', // light purple background
+          textColor: '#8B5CF6',
+        }
+      };
+    }
+
     const today = new Date();
     const startDate = new Date(trip.startDate);
     const endDate = new Date(trip.endDate);
@@ -462,20 +520,59 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
       </View>
         {/* Trip Info */}
         <View style={styles.tripInfo}>
-          <View style={[styles.tripDetail, { justifyContent: 'space-between' }]}>
-            <Text style={styles.tripTitle}>{trip.title}</Text>
-            {(() => {
-              const tripStatus = getTripStatus(trip);
-              return (
-                <View style={[styles.tripStatusBadge, { backgroundColor: tripStatus.banner.color }]}>
-                  {tripStatus.icon}
-                  <Text style={[styles.statusText, { color: tripStatus.color, marginLeft: 4 }]}>
-                    {tripStatus.status.charAt(0).toUpperCase() + tripStatus.status.slice(1)}
-                  </Text>
+                  <View style={[styles.tripDetail, { justifyContent: 'space-between' }]}>
+          <View style={styles.titleContainer}>
+            {editingTitle ? (
+              <View style={styles.titleEditContainer}>
+                <TextInput
+                  style={styles.titleEditInput}
+                  value={tempTitle}
+                  onChangeText={setTempTitle}
+                  placeholder="Enter trip title"
+                  placeholderTextColor="#9CA3AF"
+                  autoFocus
+                />
+                <View style={styles.titleEditActions}>
+                  <TouchableOpacity
+                    style={styles.saveTitleButton}
+                    onPress={handleSaveTitle}
+                  >
+                    <Check size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.cancelTitleButton}
+                    onPress={handleCancelTitleEdit}
+                  >
+                    <X size={16} color="#6B7280" />
+                  </TouchableOpacity>
                 </View>
-              );
-            })()}
+              </View>
+            ) : (
+              <View style={styles.titleDisplayContainer}>
+                <Text style={styles.tripTitle}>{trip.title}</Text>
+                {canEdit && (
+                  <TouchableOpacity
+                    style={styles.editTitleButton}
+                    onPress={handleEditTitle}
+                  >
+                    <Pencil size={16} color="#6B7280" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
+          {(() => {
+            const tripStatus = getTripStatus(trip);
+            return (
+              <View style={[styles.tripStatusBadge, { backgroundColor: tripStatus.banner.color }]}>
+                {tripStatus.icon}
+                <Text style={[styles.statusText, { color: tripStatus.color, marginLeft: 4 }]}>
+                  {tripStatus.status.charAt(0).toUpperCase() + tripStatus.status.slice(1)}
+                </Text>
+              </View>
+            );
+          })()}
+        </View>
         <View style={styles.tripDetail}>
           <MapPin size={20} color="#6B7280" />
           <Text style={styles.tripDestination}>{trip.destination}</Text>
@@ -493,7 +590,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
                   accessibilityHint="Tap to open calendar and select trip start date"
                 >
                   <Text style={styles.dateEditText}>
-                    {tempStartDate ? formatDateForDisplay(tempStartDate) : 'Start Date'}
+                    {tempStartDate ? formatDateForDisplay(tempStartDate) : 'Start Date (Optional)'}
                   </Text>
                 </TouchableOpacity>
                 
@@ -506,9 +603,27 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
                   accessibilityHint="Tap to open calendar and select trip end date"
                 >
                   <Text style={styles.dateEditText}>
-                    {tempEndDate ? formatDateForDisplay(tempEndDate) : 'End Date'}
+                    {tempEndDate ? formatDateForDisplay(tempEndDate) : 'End Date (Optional)'}
                   </Text>
                 </TouchableOpacity>
+                
+                {/* Duration input for when dates are not set */}
+                {(!tempStartDate || !tempEndDate) && (
+                  <View style={styles.durationEditContainer}>
+                    <Text style={styles.durationEditLabel}>Duration (Days)</Text>
+                    <TextInput
+                      style={styles.durationEditInput}
+                      value={tempPlannedDurationDays ? tempPlannedDurationDays.toString() : ''}
+                      onChangeText={(text) => {
+                        const days = parseInt(text) || 0;
+                        setTempPlannedDurationDays(days);
+                      }}
+                      placeholder="Enter number of days"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                )}
                 
                 <View style={styles.dateEditActions}>
                   <TouchableOpacity
@@ -530,11 +645,19 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
             ) : (
               <View style={styles.dateViewContainer}>
                 {/* Trip Duration Display */}
+                {days > 0 ? (
                   <View style={styles.durationBadge}>
                     <Text style={styles.durationText}>
                       {days} Day{days !== 1 ? 's' : ''}, {nights} Night{nights !== 1 ? 's' : ''}
                     </Text>
                   </View>
+                ) : (
+                  <View style={styles.durationBadge}>
+                    <Text style={[styles.durationText, { color: '#9CA3AF', fontStyle: 'italic' }]}>
+                      {trip.plannedDurationDays ? `${trip.plannedDurationDays} days planned` : 'No dates set'}
+                    </Text>
+                  </View>
+                )}
                   {canEdit && (
                     <TouchableOpacity
                       style={[styles.editDateButton, { marginLeft: 8, padding: 4, borderRadius: 4 }]}
@@ -551,9 +674,17 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
         </View>
         <View style={styles.tripDetail}>
           <Text style={styles.tripDates} numberOfLines={1} ellipsizeMode="tail">
-            {formatDate(trip.startDate)} 
-            <Text style={{ color: '#6B7280', fontWeight: '500' }}>  to  </Text>
-            {formatDate(trip.endDate)}
+            {trip.startDate && trip.endDate ? (
+              <>
+                {formatDate(trip.startDate)} 
+                <Text style={{ color: '#6B7280', fontWeight: '500' }}>  to  </Text>
+                {formatDate(trip.endDate)}
+              </>
+            ) : (
+              <Text style={{ color: '#9CA3AF', fontStyle: 'italic' }}>
+                {trip.startDate ? 'Start date set' : 'No dates set'}
+              </Text>
+            )}
           </Text>
         </View>
         <View style={styles.tripDetail}>
@@ -701,9 +832,10 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
     return <TripMapView trip={trip} places={tripPlaces || []} />;
   };
 
-  const renderItinerary = () => (
-    <ItineraryBuilder trip={trip} />
-  );
+  const renderItinerary = () => {
+    console.log('Rendering itinerary tab, trip:', trip);
+    return <ItineraryBuilder trip={trip} />;
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
@@ -1006,6 +1138,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
+  titleContainer: {
+    flex: 1,
+  },
+  titleDisplayContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editTitleButton: {
+    padding: 4,
+  },
+  titleEditContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  titleEditInput: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#FFFFFF',
+  },
+  titleEditActions: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  saveTitleButton: {
+    backgroundColor: '#10B981',
+    padding: 6,
+    borderRadius: 4,
+  },
+  cancelTitleButton: {
+    backgroundColor: '#F3F4F6',
+    padding: 6,
+    borderRadius: 4,
+  },
   tripDetail: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1084,6 +1258,27 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 8,
     marginTop: 8,
+  },
+  durationEditContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  durationEditLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  durationEditInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 14,
+    backgroundColor: '#FFFFFF',
   },
   cancelDateButton: {
     paddingHorizontal: 12,

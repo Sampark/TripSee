@@ -20,7 +20,7 @@ import TripDetailsModal from '@/components/trip/TripDetailsModal';
 import DatePickerModal from '@/components/common/DatePickerModal';
 
 export default function TripsScreen() {
-  const { trips, loading, addTrip, updateTrip, deleteTrip } = useTrips();
+  const { trips, loading, addTrip, updateTrip: updateTripFromHook, deleteTrip: deleteTripFromHook } = useTrips();
   const { places } = usePlaces();
   const { profile, isLoggedIn, updateUserStats, checkLoginStatus } = useProfile();
   const [dataLoading, setDataLoading] = useState(true);
@@ -38,6 +38,8 @@ export default function TripsScreen() {
     destinationData: null as any,
     startDate: '',
     endDate: '',
+    plannedDurationDays: 0,
+    datesNotDecided: false,
     visibility: 'private' as 'public' | 'private',
   });
 
@@ -97,26 +99,75 @@ export default function TripsScreen() {
     return places.filter(place => place.tripId === tripId).length;
   };
 
+  // Custom updateTrip function that also updates selectedTrip
+  const updateTrip = async (tripId: string, updates: any) => {
+    try {
+      await updateTripFromHook(tripId, updates);
+      
+      // Update selectedTrip if it's the same trip
+      if (selectedTrip && selectedTrip.id === tripId) {
+        setSelectedTrip((prev: any) => ({ ...prev, ...updates }));
+      }
+    } catch (error) {
+      console.error('Error updating trip:', error);
+      throw error;
+    }
+  };
+
+  // Custom deleteTrip function that also clears selectedTrip
+  const deleteTrip = async (tripId: string) => {
+    try {
+      await deleteTripFromHook(tripId);
+      
+      // Clear selectedTrip if it's the same trip
+      if (selectedTrip && selectedTrip.id === tripId) {
+        setSelectedTrip(null);
+        setShowDetailsModal(false);
+      }
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+      throw error;
+    }
+  };
+
   const handleCreateTrip = async () => {
-    if (!newTrip.title || !newTrip.destination || !newTrip.startDate || !newTrip.endDate) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!newTrip.title || !newTrip.destination) {
+      Alert.alert('Error', 'Please fill in trip title and destination');
       return;
     }
 
-    // Validate date order
-    const startDate = new Date(newTrip.startDate);
-    const endDate = new Date(newTrip.endDate);
-    if (startDate > endDate) {
-      Alert.alert('Error', 'Start date cannot be later than end date');
+    // If checkbox is checked, require duration
+    if (newTrip.datesNotDecided && !newTrip.plannedDurationDays) {
+      Alert.alert('Error', 'Please provide the number of days for your trip');
       return;
+    }
+
+    // If checkbox is not checked, require both dates
+    if (!newTrip.datesNotDecided && (!newTrip.startDate || !newTrip.endDate)) {
+      Alert.alert('Error', 'Please provide both start date and end date for your trip');
+      return;
+    }
+
+    // Validate date order if both dates are provided and checkbox is not checked
+    if (!newTrip.datesNotDecided && newTrip.startDate && newTrip.endDate) {
+      const startDate = new Date(newTrip.startDate);
+      const endDate = new Date(newTrip.endDate);
+      if (startDate > endDate) {
+        Alert.alert('Error', 'Start date cannot be later than end date');
+        return;
+      }
     }
 
     try {
+      // Determine trip status based on checkbox state
+      const hasDates = !newTrip.datesNotDecided && newTrip.startDate && newTrip.endDate;
+      
       await addTrip({
         title: newTrip.title,
         destination: newTrip.destination,
-        startDate: newTrip.startDate,
-        endDate: newTrip.endDate,
+        startDate: newTrip.datesNotDecided ? undefined : newTrip.startDate,
+        endDate: newTrip.datesNotDecided ? undefined : newTrip.endDate,
+        plannedDurationDays: newTrip.datesNotDecided ? newTrip.plannedDurationDays : undefined,
         visibility: newTrip.visibility,
         image: 'https://images.pexels.com/photos/1320684/pexels-photo-1320684.jpeg?auto=compress&cs=tinysrgb&w=800',
         participants: 1,
@@ -129,7 +180,7 @@ export default function TripsScreen() {
         fellowTravellers: []
       });
 
-      setNewTrip({ title: '', destination: '', destinationData: null, startDate: '', endDate: '', visibility: 'private' });
+      setNewTrip({ title: '', destination: '', destinationData: null, startDate: '', endDate: '', plannedDurationDays: 0, datesNotDecided: false, visibility: 'private' });
       setShowCreateModal(false);
       Alert.alert('Success', 'Trip created successfully!');
       
@@ -141,6 +192,7 @@ export default function TripsScreen() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
@@ -181,19 +233,20 @@ export default function TripsScreen() {
 
   const handleTripDetails = (trip: any) => {
     setSelectedTrip(trip);
+    setSelectedTripTab('overview');
     setShowDetailsModal(true);
   };
 
   const handleTripItinerary = (trip: any) => {
     setSelectedTrip(trip);
+    setSelectedTripTab('itinerary');
     setShowDetailsModal(true);
-    // Will open to itinerary tab via initialTab prop
   };
 
   const handleTripMap = (trip: any) => {
     setSelectedTrip(trip);
+    setSelectedTripTab('map');
     setShowDetailsModal(true);
-    // Will open to map tab via initialTab prop
   };
 
   const [selectedTripTab, setSelectedTripTab] = useState<'overview' | 'map' | 'itinerary'>('overview');
@@ -305,7 +358,11 @@ export default function TripsScreen() {
               <View style={styles.tripDetail}>
                 <Calendar size={16} color="#6B7280" />
                 <Text style={styles.tripDates}>
-                  {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                  {trip.startDate && trip.endDate ? (
+                    `${formatDate(trip.startDate)} - ${formatDate(trip.endDate)}`
+                  ) : (
+                    trip.plannedDurationDays ? `${trip.plannedDurationDays} days planned` : 'Dates not set'
+                  )}
                 </Text>
               </View>
               
@@ -343,7 +400,7 @@ export default function TripsScreen() {
                   <Text style={styles.mapButtonText}>Map View</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={styles.itineryButton}
+                  style={styles.itineraryButton}
                   onPress={() => {
                     setSelectedTrip(trip);
                     setShowDetailsModal(true);
@@ -351,7 +408,7 @@ export default function TripsScreen() {
                   }}
                 >
                   <List size={16} color="#10B981" />
-                  <Text style={styles.mapButtonText}>Itinerary</Text>
+                  <Text style={styles.itineraryButtonText}>Itinerary</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -399,43 +456,82 @@ export default function TripsScreen() {
               />
             </View>
 
-            <View style={styles.dateRow}>
-              <View style={styles.dateInput}>
-                <Text style={styles.inputLabel}>Start Date</Text>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowStartDatePicker(true)}
-                  accessibilityLabel="Start Date"
-                  accessibilityHint="Tap to open calendar and select trip start date"
-                >
-                  <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
-                  <Text style={[
-                    styles.dateText,
-                    !newTrip.startDate && styles.placeholderText
-                  ]}>
-                    {newTrip.startDate ? formatDateForDisplay(newTrip.startDate) : 'Start Date'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.dateInput}>
-                <Text style={styles.inputLabel}>End Date</Text>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowEndDatePicker(true)}
-                  accessibilityLabel="End Date"
-                  accessibilityHint="Tap to open calendar and select trip end date"
-                >
-                  <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
-                  <Text style={[
-                    styles.dateText,
-                    !newTrip.endDate && styles.placeholderText
-                  ]}>
-                    {newTrip.endDate ? formatDateForDisplay(newTrip.endDate) : 'End Date'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            {/* Checkbox for dates not decided */}
+            <View style={styles.checkboxContainer}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => setNewTrip({ ...newTrip, datesNotDecided: !newTrip.datesNotDecided })}
+              >
+                {newTrip.datesNotDecided && (
+                  <Text style={styles.checkboxText}>✓</Text>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.checkboxLabel}>
+                Dates are not decided yet
+              </Text>
             </View>
+
+                        {/* Date fields - mandatory when checkbox is unchecked */}
+            {!newTrip.datesNotDecided && (
+              <View style={styles.dateRow}>
+                <View style={styles.dateInput}>
+                  <Text style={styles.inputLabel}>Start Date *</Text>
+                  <TouchableOpacity
+                    style={styles.dateButton}
+                    onPress={() => setShowStartDatePicker(true)}
+                    accessibilityLabel="Start Date"
+                    accessibilityHint="Tap to open calendar and select trip start date"
+                  >
+                    <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
+                    <Text style={[
+                      styles.dateText,
+                      !newTrip.startDate && styles.placeholderText
+                    ]}>
+                      {newTrip.startDate ? formatDateForDisplay(newTrip.startDate) : 'Start Date (Required)'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.dateInput}>
+                  <Text style={styles.inputLabel}>End Date *</Text>
+                  <TouchableOpacity
+                    style={styles.dateButton}
+                    onPress={() => setShowEndDatePicker(true)}
+                    accessibilityLabel="End Date"
+                    accessibilityHint="Tap to open calendar and select trip end date"
+                  >
+                    <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
+                    <Text style={[
+                      styles.dateText,
+                      !newTrip.endDate && styles.placeholderText
+                    ]}>
+                      {newTrip.endDate ? formatDateForDisplay(newTrip.endDate) : 'End Date (Required)'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Duration field - mandatory when checkbox is checked */}
+            {newTrip.datesNotDecided && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Trip Duration (Days) *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={newTrip.plannedDurationDays ? newTrip.plannedDurationDays.toString() : ''}
+                  onChangeText={(text) => {
+                    const days = parseInt(text) || 0;
+                    setNewTrip({ ...newTrip, plannedDurationDays: days });
+                  }}
+                  placeholder="Enter number of days (required)"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+                <Text style={styles.inputHelper}>
+                  Please provide the number of days for your trip planning
+                </Text>
+              </View>
+            )}
 
             <View style={[styles.inputGroup, styles.visibilitySection]}>
               <Text style={styles.inputLabel}>Trip Visibility</Text>
@@ -516,6 +612,7 @@ export default function TripsScreen() {
           trip={selectedTrip}
           initialTab={selectedTripTab}
           onTripUpdate={updateTrip}
+          onTripDelete={deleteTrip}
           onClose={() => {
             setShowDetailsModal(false);
             setSelectedTrip(null);
@@ -689,7 +786,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
   },
-  itineryButton: {
+  itineraryButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -700,6 +797,12 @@ const styles = StyleSheet.create({
   },
   mapButtonText: {
     color: '#059669',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  itineraryButtonText: {
+    color: '#A16207',
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -801,6 +904,38 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#374151',
     marginBottom: 8,
+  },
+  inputHelper: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderRadius: 4,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  checkboxText: {
+    fontSize: 14,
+    color: '#2563EB',
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: '#374151',
+    flex: 1,
   },
   textInput: {
     borderWidth: 1,
