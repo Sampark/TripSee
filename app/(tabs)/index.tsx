@@ -17,7 +17,7 @@ import { useTrips, usePlaces, useProfile } from '@/hooks/useStorage';
 import { router } from 'expo-router';
 import TripSharingModal from '@/components/TripSharingModal';
 import TripDetailsModal from '@/components/trip/TripDetailsModal';
-import DatePickerModal from '@/components/common/DatePickerModal';
+import DateTimePicker from '@/components/common/DateTimePicker';
 
 export default function TripsScreen() {
   const { trips, loading, addTrip, updateTrip: updateTripFromHook, deleteTrip: deleteTripFromHook } = useTrips();
@@ -29,8 +29,7 @@ export default function TripsScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSharingModal, setShowSharingModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
   const [selectedTrip, setSelectedTrip] = useState<any>(null);
   const [newTrip, setNewTrip] = useState({
     title: '',
@@ -206,16 +205,6 @@ export default function TripsScreen() {
       day: 'numeric',
       year: 'numeric'
     });
-  };
-
-  const handleDateSelect = (date: string, type: 'start' | 'end') => {
-    if (type === 'start') {
-      setNewTrip({ ...newTrip, startDate: date });
-      setShowStartDatePicker(false);
-    } else {
-      setNewTrip({ ...newTrip, endDate: date });
-      setShowEndDatePicker(false);
-    }
   };
 
   const handleDestinationSelect = (destination: any) => {
@@ -475,39 +464,26 @@ export default function TripsScreen() {
             {!newTrip.datesNotDecided && (
               <View style={styles.dateRow}>
                 <View style={styles.dateInput}>
-                  <Text style={styles.inputLabel}>Start Date *</Text>
-                  <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowStartDatePicker(true)}
-                    accessibilityLabel="Start Date"
-                    accessibilityHint="Tap to open calendar and select trip start date"
-                  >
-                    <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
-                    <Text style={[
-                      styles.dateText,
-                      !newTrip.startDate && styles.placeholderText
-                    ]}>
-                      {newTrip.startDate ? formatDateForDisplay(newTrip.startDate) : 'Start Date (Required)'}
-                    </Text>
-                  </TouchableOpacity>
+                  <DateTimePicker
+                    value={newTrip.startDate}
+                    onChange={(date) => setNewTrip({ ...newTrip, startDate: date })}
+                    placeholder="Start Date"
+                    label="Start Date *"
+                    mode="date"
+                    minimumDate={new Date()}
+                    maximumDate={newTrip.endDate ? new Date(newTrip.endDate) : undefined}
+                  />
                 </View>
 
                 <View style={styles.dateInput}>
-                  <Text style={styles.inputLabel}>End Date *</Text>
-                  <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowEndDatePicker(true)}
-                    accessibilityLabel="End Date"
-                    accessibilityHint="Tap to open calendar and select trip end date"
-                  >
-                    <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
-                    <Text style={[
-                      styles.dateText,
-                      !newTrip.endDate && styles.placeholderText
-                    ]}>
-                      {newTrip.endDate ? formatDateForDisplay(newTrip.endDate) : 'End Date (Required)'}
-                    </Text>
-                  </TouchableOpacity>
+                  <DateTimePicker
+                    value={newTrip.endDate}
+                    onChange={(date) => setNewTrip({ ...newTrip, endDate: date })}
+                    placeholder="End Date"
+                    label="End Date *"
+                    mode="date"
+                    minimumDate={newTrip.startDate ? new Date(newTrip.startDate) : new Date()}
+                  />
                 </View>
               </View>
             )}
@@ -574,24 +550,7 @@ export default function TripsScreen() {
               </View>
             </View>
           </ScrollView>
-          <DatePickerModal
-            visible={showStartDatePicker}
-            onClose={() => setShowStartDatePicker(false)}
-            onDateSelect={(date) => handleDateSelect(date, 'start')}
-            title="Start Date"
-            initialDate={newTrip.startDate}
-            minDate={new Date().toISOString().split('T')[0]}
-            maxDate={newTrip.endDate || undefined}
-          />
 
-          <DatePickerModal
-            visible={showEndDatePicker}
-            onClose={() => setShowEndDatePicker(false)}
-            onDateSelect={(date) => handleDateSelect(date, 'end')}
-            title="End Date"
-            initialDate={newTrip.endDate}
-            minDate={newTrip.startDate || new Date().toISOString().split('T')[0]}
-          />
         </SafeAreaView>
       </Modal>
 

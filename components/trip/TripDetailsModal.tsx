@@ -12,11 +12,11 @@ import {
   TextInput,
 } from 'react-native';
 import { X, MapPin, Calendar, Users, Plus, Map as MapIcon, List, Settings, Eye, Trash2, Shield, Globe, Lock, Check, UserPlus, Mail, Pencil, AlertTriangle, CheckCircle } from 'lucide-react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlaces, useProfile, useTrips } from '../../hooks/useStorage';
 import ItineraryBuilder from './ItineraryBuilder';
 import PlaceSelector from '../PlaceSelector';
-import DatePickerModal from '../common/DatePickerModal';
+import DateTimePicker from '../common/DateTimePicker';
 import AdminActionsModal from './AdminActionsModal';
 import { Trip } from '@/services/StorageService';
 
@@ -38,8 +38,7 @@ interface TripDetailsModalProps {
 export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate, onTripDelete, initialTab = 'overview' }: TripDetailsModalProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'map' | 'itinerary'>('overview');
   const [showPlaceSelector, setShowPlaceSelector] = useState(false);
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
   const [editingDates, setEditingDates] = useState(false);
   const [tempStartDate, setTempStartDate] = useState('');
   const [tempEndDate, setTempEndDate] = useState('');
@@ -269,24 +268,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
     setTempTitle(trip.title);
   };
 
-  const handleDateSelect = (date: string, type: 'start' | 'end') => {
-    if (type === 'start') {
-      setTempStartDate(date);
-      setShowStartDatePicker(false);
-    } else {
-      setTempEndDate(date);
-      setShowEndDatePicker(false);
-    }
-  };
 
-  const openDatePicker = (type: 'start' | 'end') => {
-    // Use consistent custom date picker across all platforms
-    if (type === 'start') {
-      setShowStartDatePicker(true);
-    } else {
-      setShowEndDatePicker(true);
-    }
-  };
   const handleDeleteTrip = () => {
     if (!canDelete) {
       Alert.alert('Permission Denied', 'Only the trip owner can delete this trip.');
@@ -583,29 +565,29 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
           <View style={styles.dateContainer}>
             {editingDates ? (
               <View style={styles.dateEditContainer}>
-                <TouchableOpacity
-                  style={styles.dateEditButton}
-                  onPress={() => openDatePicker('start')}
-                  accessibilityLabel="Start Date"
-                  accessibilityHint="Tap to open calendar and select trip start date"
-                >
-                  <Text style={styles.dateEditText}>
-                    {tempStartDate ? formatDateForDisplay(tempStartDate) : 'Start Date (Optional)'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.dateContainer}>
+                  <DateTimePicker
+                    value={tempStartDate}
+                    onChange={(date) => setTempStartDate(date)}
+                    placeholder="Start Date (Optional)"
+                    label="Start Date"
+                    mode="date"
+                    minimumDate={new Date()}
+                  />
+                </View>
                 
                 <Text style={styles.dateSeparator}>to</Text>
                 
-                <TouchableOpacity
-                  style={styles.dateEditButton}
-                  onPress={() => openDatePicker('end')}
-                  accessibilityLabel="End Date"
-                  accessibilityHint="Tap to open calendar and select trip end date"
-                >
-                  <Text style={styles.dateEditText}>
-                    {tempEndDate ? formatDateForDisplay(tempEndDate) : 'End Date (Optional)'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.dateContainer}>
+                  <DateTimePicker
+                    value={tempEndDate}
+                    onChange={(date) => setTempEndDate(date)}
+                    placeholder="End Date (Optional)"
+                    label="End Date"
+                    mode="date"
+                    minimumDate={tempStartDate ? new Date(tempStartDate) : new Date()}
+                  />
+                </View>
                 
                 {/* Duration input for when dates are not set */}
                 {(!tempStartDate || !tempEndDate) && (
@@ -900,25 +882,7 @@ export default function TripDetailsModal({ visible, trip, onClose, onTripUpdate,
           onClose={() => setShowPlaceSelector(false)}
         />
         
-        {/* Date Picker Modals */}
-        <DatePickerModal
-          visible={showStartDatePicker}
-          onClose={() => setShowStartDatePicker(false)}
-          onDateSelect={(date) => handleDateSelect(date, 'start')}
-          title="Start Date"
-          initialDate={tempStartDate}
-          minDate={new Date().toISOString().split('T')[0]}
-          maxDate={tempEndDate || undefined}
-        />
 
-        <DatePickerModal
-          visible={showEndDatePicker}
-          onClose={() => setShowEndDatePicker(false)}
-          onDateSelect={(date) => handleDateSelect(date, 'end')}
-          title="End Date"
-          initialDate={tempEndDate}
-          minDate={tempStartDate || new Date().toISOString().split('T')[0]}
-        />
 
         {/* Add Partner Modal */}
         <Modal
